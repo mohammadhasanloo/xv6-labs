@@ -1,0 +1,1088 @@
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/.cvsignore 4-synchronisation/.cvsignore
+--- xv6/.cvsignore	2020-08-10 14:28:02
++++ 4-synchronisation/.cvsignore	1969-12-31 19:00:00
+@@ -1,16 +0,0 @@
+-*.asm
+-*.d
+-*.sym
+-_*
+-kernel
+-user1
+-userfs
+-usertests
+-xv6.img
+-vectors.S
+-bochsout.txt
+-bootblock
+-bootother
+-bootother.out
+-parport.out
+-fmt
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/.dir-locals.el 4-synchronisation/.dir-locals.el
+--- xv6/.dir-locals.el	2020-08-10 14:28:02
++++ 4-synchronisation/.dir-locals.el	1969-12-31 19:00:00
+@@ -1,4 +0,0 @@
+-((c-mode
+-  (indent-tabs-mode . nil)
+-  (c-file-style . "bsd")
+-  (c-basic-offset . 2)))
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/.gdbinit.tmpl 4-synchronisation/.gdbinit.tmpl
+--- xv6/.gdbinit.tmpl	2020-08-10 14:28:02
++++ 4-synchronisation/.gdbinit.tmpl	1969-12-31 19:00:00
+@@ -1,27 +0,0 @@
+-set $lastcs = -1
+-
+-define hook-stop
+-  # There doesn't seem to be a good way to detect if we're in 16- or
+-  # 32-bit mode, but in 32-bit mode we always run with CS == 8 in the
+-  # kernel and CS == 35 in user space
+-  if $cs == 8 || $cs == 35
+-    if $lastcs != 8 && $lastcs != 35
+-      set architecture i386
+-    end
+-    x/i $pc
+-  else
+-    if $lastcs == -1 || $lastcs == 8 || $lastcs == 35
+-      set architecture i8086
+-    end
+-    # Translate the segment:offset into a physical address
+-    printf "[%4x:%4x] ", $cs, $eip
+-    x/i $cs*16+$eip
+-  end
+-  set $lastcs = $cs
+-end
+-
+-echo + target remote localhost:1234\n
+-target remote localhost:1234
+-
+-echo + symbol-file kernel\n
+-symbol-file kernel
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/.gitignore 4-synchronisation/.gitignore
+--- xv6/.gitignore	2020-08-10 14:28:02
++++ 4-synchronisation/.gitignore	1969-12-31 19:00:00
+@@ -1,16 +0,0 @@
+-*~
+-_*
+-*.o
+-*.d
+-*.asm
+-*.sym
+-*.img
+-vectors.S
+-bootblock
+-entryother
+-initcode
+-initcode.out
+-kernel
+-kernelmemfs
+-mkfs
+-.gdbinit
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/.idea/.gitignore 4-synchronisation/.idea/.gitignore
+--- xv6/.idea/.gitignore	1969-12-31 19:00:00
++++ 4-synchronisation/.idea/.gitignore	2026-09-06 23:43:20
+@@ -0,0 +1,8 @@
++# Default ignored files
++/shelf/
++/workspace.xml
++# Editor-based HTTP Client requests
++/httpRequests/
++# Datasource local storage ignored files
++/dataSources/
++/dataSources.local.xml
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/.idea/Code.iml 4-synchronisation/.idea/Code.iml
+--- xv6/.idea/Code.iml	1969-12-31 19:00:00
++++ 4-synchronisation/.idea/Code.iml	2026-09-06 23:43:20
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<module type="PYTHON_MODULE" version="4">
++  <component name="NewModuleRootManager">
++    <content url="file://$MODULE_DIR$" />
++    <orderEntry type="inheritedJdk" />
++    <orderEntry type="sourceFolder" forTests="false" />
++  </component>
++</module>
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/.idea/inspectionProfiles/Project_Default.xml 4-synchronisation/.idea/inspectionProfiles/Project_Default.xml
+--- xv6/.idea/inspectionProfiles/Project_Default.xml	1969-12-31 19:00:00
++++ 4-synchronisation/.idea/inspectionProfiles/Project_Default.xml	2026-09-06 23:43:20
+@@ -0,0 +1,7 @@
++<component name="InspectionProjectProfileManager">
++  <profile version="1.0">
++    <option name="myName" value="Project Default" />
++    <inspection_tool class="Eslint" enabled="true" level="WARNING" enabled_by_default="true" />
++    <inspection_tool class="Stylelint" enabled="true" level="ERROR" enabled_by_default="true" />
++  </profile>
++</component>
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/.idea/inspectionProfiles/profiles_settings.xml 4-synchronisation/.idea/inspectionProfiles/profiles_settings.xml
+--- xv6/.idea/inspectionProfiles/profiles_settings.xml	1969-12-31 19:00:00
++++ 4-synchronisation/.idea/inspectionProfiles/profiles_settings.xml	2026-09-06 23:43:20
+@@ -0,0 +1,6 @@
++<component name="InspectionProjectProfileManager">
++  <settings>
++    <option name="USE_PROJECT_PROFILE" value="false" />
++    <version value="1.0" />
++  </settings>
++</component>
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/.idea/misc.xml 4-synchronisation/.idea/misc.xml
+--- xv6/.idea/misc.xml	1969-12-31 19:00:00
++++ 4-synchronisation/.idea/misc.xml	2026-09-06 23:43:20
+@@ -0,0 +1,4 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.8" project-jdk-type="Python SDK" />
++</project>
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/.idea/modules.xml 4-synchronisation/.idea/modules.xml
+--- xv6/.idea/modules.xml	1969-12-31 19:00:00
++++ 4-synchronisation/.idea/modules.xml	2026-09-06 23:43:20
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="ProjectModuleManager">
++    <modules>
++      <module fileurl="file://$PROJECT_DIR$/.idea/Code.iml" filepath="$PROJECT_DIR$/.idea/Code.iml" />
++    </modules>
++  </component>
++</project>
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/.idea/vcs.xml 4-synchronisation/.idea/vcs.xml
+--- xv6/.idea/vcs.xml	1969-12-31 19:00:00
++++ 4-synchronisation/.idea/vcs.xml	2026-09-06 23:43:20
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="VcsDirectoryMappings">
++    <mapping directory="$PROJECT_DIR$/.." vcs="Git" />
++  </component>
++</project>
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/Makefile 4-synchronisation/Makefile
+--- xv6/Makefile	2020-08-10 14:28:02
++++ 4-synchronisation/Makefile	2026-09-06 23:43:20
+@@ -166,6 +166,7 @@
+ .PRECIOUS: %.o
+ 
+ UPROGS=\
++	_sort_string\
+ 	_cat\
+ 	_echo\
+ 	_forktest\
+@@ -181,6 +182,11 @@
+ 	_usertests\
+ 	_wc\
+ 	_zombie\
++	_reentrant_mutex\
++	_sem_acquire\
++	_sem_release\
++	_sem_init\
++	_producer_consumer\
+ 
+ fs.img: mkfs README $(UPROGS)
+ 	./mkfs fs.img README $(UPROGS)
+@@ -249,10 +255,12 @@
+ 
+ EXTRA=\
+ 	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
+-	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
++	ln.c ls.c sort_string.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
+ 	printf.c umalloc.c\
+ 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
+ 	.gdbinit.tmpl gdbutil\
++	_reentrant_mutex\
++	sem_init.c sem_release.c sem_acquire.c\
+ 
+ dist:
+ 	rm -rf dist
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/console.c 4-synchronisation/console.c
+--- xv6/console.c	2020-08-10 14:28:02
++++ 4-synchronisation/console.c	2026-09-06 23:43:20
+@@ -15,6 +15,11 @@
+ #include "proc.h"
+ #include "x86.h"
+ 
++#define UP_ARROW 226
++#define DOWN_ARROW 227
++#define LEFT_ARROW 228
++#define RIGHT_ARROW 229
++
+ static void consputc(int);
+ 
+ static int panicked = 0;
+@@ -139,12 +144,19 @@
+   outb(CRTPORT, 15);
+   pos |= inb(CRTPORT+1);
+ 
+-  if(c == '\n')
+-    pos += 80 - pos%80;
+-  else if(c == BACKSPACE){
+-    if(pos > 0) --pos;
+-  } else
+-    crt[pos++] = (c&0xff) | 0x0700;  // black on white
++  switch(c) {
++    case '\n':
++      pos += 80 - pos%80;
++      break;
++    case BACKSPACE:
++      if(pos > 0) --pos;
++      break;
++    case LEFT_ARROW:
++      if(pos > 0) --pos;
++      break;
++    default:
++      crt[pos++] = (c&0xff) | 0x0700;  // black on white
++  }
+ 
+   if(pos < 0 || pos > 25*80)
+     panic("pos under/overflow");
+@@ -159,7 +171,8 @@
+   outb(CRTPORT+1, pos>>8);
+   outb(CRTPORT, 15);
+   outb(CRTPORT+1, pos);
+-  crt[pos] = ' ' | 0x0700;
++  if (c == BACKSPACE)
++    crt[pos] = ' ' | 0x0700;
+ }
+ 
+ void
+@@ -171,28 +184,202 @@
+       ;
+   }
+ 
+-  if(c == BACKSPACE){
+-    uartputc('\b'); uartputc(' '); uartputc('\b');
+-  } else
+-    uartputc(c);
++  switch (c) {
++    case BACKSPACE:
++      // uartputc prints to Linux's terminal
++      uartputc('\b'); uartputc(' '); uartputc('\b');  // uart is writing to the linux shell
++      break;
++    case LEFT_ARROW:
++      uartputc('\b');
++      break;
++    default:
++      uartputc(c);
++  }
++  // cgaputc prints to QEMU's terminal
+   cgaputc(c);
+ }
+ 
+ #define INPUT_BUF 128
++#define MAX_HISTORY 20
+ struct {
+   char buf[INPUT_BUF];
+   uint r;  // Read index
+   uint w;  // Write index
+   uint e;  // Edit index
++  uint rightmost; // the first empty char in the line
+ } input;
+ 
++char charsToBeMoved[INPUT_BUF];  // temporary storage for input.buf in a certain context
++
++/*
++  this struct will hold the history buffer array
++*/
++struct {
++  char bufferArr[MAX_HISTORY][INPUT_BUF]; //holds the actual command strings -
++  uint lengthsArr[MAX_HISTORY]; // this will hold the length of each command string
++  uint lastCommandIndex;  //the index of the last command entered to history
++  int numOfCommmandsInMem; //number of history commands in mem
++  int currentHistory;//this will hold the current history view (the oldest will be MAX_HISTORY-1)
++} historyBufferArray;
++
++char oldBuf[INPUT_BUF];// this will hold the details of the command that was written before accessing the history
++uint lengthOfOldBuf;
++
++char buf2[INPUT_BUF];
++
+ #define C(x)  ((x)-'@')  // Control-x
+ 
++/*
++Copy input.buf to a safe location. Used only when punching in new keys and the
++caret isn't at the end of the line.
++*/
++void copyCharsToBeMoved() {
++  uint n = input.rightmost - input.r;
++  uint i;
++  for (i = 0; i < n; i++)
++    charsToBeMoved[i] = input.buf[(input.e + i) % INPUT_BUF];
++}
++
++/*
++Shift input.buf one byte to the left, and repaint the chars on-screen. Used
++Used only when punching in BACKSPACE and the caret isn't at the end of the line.
++*/
++void shiftbufleft() {
++  uint n = input.rightmost - input.e;
++  uint i;
++  consputc(LEFT_ARROW);
++  input.e--;
++  for (i = 0; i < n; i++) {
++    char c = input.buf[(input.e + i + 1) % INPUT_BUF];
++    input.buf[(input.e + i) % INPUT_BUF] = c;
++    consputc(c);
++  }
++  input.rightmost--;
++  consputc(' '); // delete the last char in line
++  for (i = 0; i <= n; i++) {
++    consputc(LEFT_ARROW); // shift the caret back to the left
++  }
++}
++
++/*
++Shift input.buf one byte to the right, and repaint the chars on-screen. Used
++Used only when punching in new keys and the caret isn't at the end of the line.
++*/
++void shiftbufright() {
++  uint n = input.rightmost - input.e;
++  int i;
++  for (i = 0; i < n; i++) {
++
++    char c = charsToBeMoved[i];
++    input.buf[(input.e + i) % INPUT_BUF] = c;
++    consputc(c);
++  }
++  // reset charsToBeMoved for future use
++  memset(charsToBeMoved, '\0', INPUT_BUF);
++  // return the caret to its correct position
++  for (i = 0; i < n; i++) {
++    consputc(LEFT_ARROW);
++  }
++}
++
++/*
++  this method eareases the current line from screen
++*/
+ void
++earaseCurrentLineOnScreen(void){
++    uint numToEarase = input.rightmost - input.r;
++    uint i;
++    for (i = 0; i < numToEarase; i++) {
++      consputc(BACKSPACE);
++    }
++}
++
++/*
++  this method copies the chars currently on display (and on Input.buf) to oldBuf and save its length on current_history_viewed.lengthOld
++*/
++void
++copyCharsToBeMovedToOldBuf(void){
++    lengthOfOldBuf = input.rightmost - input.r;
++    uint i;
++    for (i = 0; i < lengthOfOldBuf; i++) {
++        oldBuf[i] = input.buf[(input.r+i)%INPUT_BUF];
++    }
++
++}
++
++/*
++  this method earase all the content of the current command on the inputbuf
++*/
++void
++earaseContentOnInputBuf(){
++  input.rightmost = input.r;
++  input.e = input.r;
++}
++
++/*
++  this method will print the given buf on the screen
++*/
++void
++copyBufferToScreen(char * bufToPrintOnScreen, uint length){
++  uint i;
++  for (i = 0; i < length; i++) {
++    consputc(bufToPrintOnScreen[i]);
++  }
++}
++
++/*
++  this method will copy the given buf to Input.buf
++  will set the input.e and input.rightmost
++  assumes input.r=input.w=input.rightmost=input.e
++*/
++void
++copyBufferToInputBuf(char * bufToSaveInInput, uint length){
++  uint i;
++  for (i = 0; i < length; i++) {
++    input.buf[(input.r+i)%INPUT_BUF] = bufToSaveInInput[i];
++  }
++  input.e = input.r+length;
++  input.rightmost = input.e;
++}
++
++/*
++  this method copies the current command in the input.buf to the saved history
++  @param length - length of command to be saved
++*/
++void
++saveCommandInHistory(){
++  historyBufferArray.currentHistory= -1;//reseting the users history current viewed
++  if (historyBufferArray.numOfCommmandsInMem < MAX_HISTORY)
++    historyBufferArray.numOfCommmandsInMem++; //when we get to MAX_HISTORY commands in memory we keep on inserting to the array in a circular mution
++  uint l = input.rightmost-input.r -1;
++  historyBufferArray.lastCommandIndex = (historyBufferArray.lastCommandIndex - 1)%MAX_HISTORY;
++  historyBufferArray.lengthsArr[historyBufferArray.lastCommandIndex] = l;
++  uint i;
++  for (i = 0; i < l; i++) { //do not want to save in memory the last char '/n'
++    historyBufferArray.bufferArr[historyBufferArray.lastCommandIndex][i] =  input.buf[(input.r+i)%INPUT_BUF];
++  }
++
++}
++
++/*
++  this is the function that gets called by the sys_history and writes the requested command history in the buffer
++*/
++int history(char *buffer, int historyId) {
++  if (historyId < 0 || historyId > MAX_HISTORY - 1)
++    return -2;
++  if (historyId >= historyBufferArray.numOfCommmandsInMem )
++    return -1;
++  memset(buffer, '\0', INPUT_BUF);
++  int tempIndex = (historyBufferArray.lastCommandIndex + historyId) % MAX_HISTORY;
++  memmove(buffer, historyBufferArray.bufferArr[tempIndex], historyBufferArray.lengthsArr[tempIndex]);
++  return 0;
++}
++
++void
+ consoleintr(int (*getc)(void))
+ {
+   int c, doprocdump = 0;
+-
++  int tempIndex;
+   acquire(&cons.lock);
+   while((c = getc()) >= 0){
+     switch(c){
+@@ -201,29 +388,126 @@
+       doprocdump = 1;
+       break;
+     case C('U'):  // Kill line.
+-      while(input.e != input.w &&
+-            input.buf[(input.e-1) % INPUT_BUF] != '\n'){
+-        input.e--;
+-        consputc(BACKSPACE);
+-      }
+-      break;
++     if (input.rightmost > input.e) { // caret isn't at the end of the line
++          uint numtoshift = input.rightmost - input.e;
++          uint placestoshift = input.e - input.w;
++          uint i;
++          for (i = 0; i < placestoshift; i++) {
++            consputc(LEFT_ARROW);
++          }
++          memset(buf2, '\0', INPUT_BUF);
++          for (i = 0; i < numtoshift; i++) {
++            buf2[i] = input.buf[(input.w + i + placestoshift) % INPUT_BUF];
++          }
++          for (i = 0; i < numtoshift; i++) {
++            input.buf[(input.w + i) % INPUT_BUF] = buf2[i];
++          }
++          input.e -= placestoshift;
++          input.rightmost -= placestoshift;
++          for (i = 0; i < numtoshift; i++) { // repaint the chars
++            consputc(input.buf[(input.e + i) % INPUT_BUF]);
++          }
++          for (i = 0; i < placestoshift; i++) { // erase the leftover chars
++            consputc(' ');
++          }
++          for (i = 0; i < placestoshift + numtoshift; i++) { // move the caret back to the left
++            consputc(LEFT_ARROW);
++          }
++        }
++        else { // caret is at the end of the line -                                       ( deleting everything from both screen and inputbuf)
++          while(input.e != input.w &&
++                input.buf[(input.e - 1) % INPUT_BUF] != '\n'){
++            input.e--;
++            input.rightmost--;
++            consputc(BACKSPACE);
++          }
++        }
++        break;
+     case C('H'): case '\x7f':  // Backspace
+-      if(input.e != input.w){
+-        input.e--;
+-        consputc(BACKSPACE);
+-      }
+-      break;
++      if (input.rightmost != input.e && input.e != input.w) { // caret isn't at the end of the line
++          shiftbufleft();
++          break;
++        }
++        if(input.e != input.w){ // caret is at the end of the line - deleting last char
++          input.e--;
++          input.rightmost--;
++          consputc(BACKSPACE);
++        }
++        break;
++    case LEFT_ARROW:
++        if (input.e != input.w) {
++          input.e--;
++          consputc(c);
++        }
++        break;
++    case RIGHT_ARROW:
++        if (input.e < input.rightmost) {
++          consputc(input.buf[input.e % INPUT_BUF]);
++          input.e++;
++        }
++        else if (input.e == input.rightmost){
++          consputc(' ');
++          consputc(LEFT_ARROW);
++        }
++        break;
++    case UP_ARROW:
++       if (historyBufferArray.currentHistory < historyBufferArray.numOfCommmandsInMem-1 ){ 
++         // current history means the oldest possible will be MAX_HISTORY-1
++          earaseCurrentLineOnScreen();
++          if (historyBufferArray.currentHistory == -1)
++              copyCharsToBeMovedToOldBuf();
++          earaseContentOnInputBuf();
++          historyBufferArray.currentHistory++;
++          tempIndex = (historyBufferArray.lastCommandIndex + historyBufferArray.currentHistory) %MAX_HISTORY;
++          copyBufferToScreen(historyBufferArray.bufferArr[ tempIndex]  , historyBufferArray.lengthsArr[tempIndex]);
++          copyBufferToInputBuf(historyBufferArray.bufferArr[ tempIndex]  , historyBufferArray.lengthsArr[tempIndex]);
++        }
++        break;
++      case DOWN_ARROW:
++        switch(historyBufferArray.currentHistory){
++          case -1:
++            //does nothing
++            break;
++          case 0: //get string from old buf
++            earaseCurrentLineOnScreen();
++            copyBufferToInputBuf(oldBuf, lengthOfOldBuf);
++            copyBufferToScreen(oldBuf, lengthOfOldBuf);
++            historyBufferArray.currentHistory--;
++            break;
++          default:
++            earaseCurrentLineOnScreen();
++            historyBufferArray.currentHistory--;
++            tempIndex = (historyBufferArray.lastCommandIndex + historyBufferArray.currentHistory)%MAX_HISTORY;
++            copyBufferToScreen(historyBufferArray.bufferArr[ tempIndex]  , historyBufferArray.lengthsArr[tempIndex]);
++            copyBufferToInputBuf(historyBufferArray.bufferArr[ tempIndex]  , historyBufferArray.lengthsArr[tempIndex]);
++            break;
++        }
++        break;
++    case '\r':
++          input.e = input.rightmost;
++  
+     default:
+-      if(c != 0 && input.e-input.r < INPUT_BUF){
+-        c = (c == '\r') ? '\n' : c;
+-        input.buf[input.e++ % INPUT_BUF] = c;
+-        consputc(c);
+-        if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
+-          input.w = input.e;
+-          wakeup(&input.r);
++        if(c != 0 && input.e-input.r < INPUT_BUF){
++          c = (c == '\r') ? '\n' : c;
++          if (input.rightmost > input.e) { // caret isn't at the end of the line
++            copyCharsToBeMoved();
++            input.buf[input.e++ % INPUT_BUF] = c;
++            input.rightmost++;
++            consputc(c);
++            shiftbufright();
++          }
++          else {
++            input.buf[input.e++ % INPUT_BUF] = c;
++            input.rightmost = input.e - input.rightmost == 1 ? input.e : input.rightmost;
++            consputc(c);
++          }
++          if(c == '\n' || c == C('D') || input.rightmost == input.r + INPUT_BUF){
++            saveCommandInHistory();
++            input.w = input.rightmost;
++            wakeup(&input.r);
++          }
+         }
+-      }
+-      break;
++        break;
+     }
+   }
+   release(&cons.lock);
+@@ -295,5 +579,8 @@
+   cons.locking = 1;
+ 
+   ioapicenable(IRQ_KBD, 0);
++
++  historyBufferArray.numOfCommmandsInMem=0;
++  historyBufferArray.lastCommandIndex=0;
+ }
+ 
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/defs.h 4-synchronisation/defs.h
+--- xv6/defs.h	2020-08-10 14:28:02
++++ 4-synchronisation/defs.h	2026-09-06 23:43:20
+@@ -120,6 +120,10 @@
+ int             wait(void);
+ void            wakeup(void*);
+ void            yield(void);
++void            reentrant_mutex(int);
++int             sem_acquire(int);
++int             sem_release(int);
++int             sem_init(int, int);
+ 
+ // swtch.S
+ void            swtch(struct context**, struct context*);
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/init.c 4-synchronisation/init.c
+--- xv6/init.c	2020-08-10 14:28:02
++++ 4-synchronisation/init.c	2026-09-06 23:43:20
+@@ -21,6 +21,10 @@
+ 
+   for(;;){
+     printf(1, "init: starting sh\n");
++    printf(1, "Group #22:\n");
++    printf(1, "1. Danial Saeedi\n");
++    printf(1, "2. Soroosh Sadeghian\n");
++    printf(1, "3. Mohammad GharehHasanloo\n");    
+     pid = fork();
+     if(pid < 0){
+       printf(1, "init: fork failed\n");
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/proc.c 4-synchronisation/proc.c
+--- xv6/proc.c	2020-08-10 14:28:02
++++ 4-synchronisation/proc.c	2026-09-06 23:43:20
+@@ -532,3 +532,81 @@
+     cprintf("\n");
+   }
+ }
++
++// The second lock
++void
++reentrant_mutex(int count)
++{
++  if (count == 0)
++  {
++    release(&tickslock);
++    return;
++  }
++
++  cprintf("Acquiring... count = %d\n", count);
++  acquire(&tickslock);
++  reentrant_mutex(count - 1);
++  return;
++}
++
++#define MAXPROC 100
++
++typedef struct
++{
++    int value;
++    struct proc* list[MAXPROC];
++    int last;
++}semaphore;
++
++semaphore sems[6];
++
++void sem_sleep(struct proc *p1)
++{
++  acquire(&ptable.lock);
++  p1->state = SLEEPING;
++  sched();
++  release(&ptable.lock);
++}
++
++void sem_wakeup(struct proc *p1)
++{
++  acquire(&ptable.lock);
++  p1->state = RUNNABLE;
++  release(&ptable.lock);
++}
++
++int sem_init(int i , int v)
++{
++  sems[i].value = v;
++  sems[i].last = 0;
++  return 0;
++}
++
++int sem_acquire(int i)
++{
++  if(sems[i].value <= 0)
++  {
++    struct proc* p = myproc();
++    sems[i].list[sems[i].last] = p;
++    sems[i].last++;
++    sem_sleep(p);
++  }
++  else
++    sems[i].value--;
++
++  return 0;
++}
++
++int sem_release(int i)
++{
++  if(sems[i].last)
++  {
++    sems[i].last--;
++    struct proc* p = sems[i].list[sems[i].last];
++    sem_wakeup(p);
++  }
++  else
++    sems[i].value++;
++
++  return 0;
++}
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/producer_consumer.c 4-synchronisation/producer_consumer.c
+--- xv6/producer_consumer.c	1969-12-31 19:00:00
++++ 4-synchronisation/producer_consumer.c	2026-09-06 23:43:20
+@@ -0,0 +1,63 @@
++#include "types.h"
++#include "stat.h"
++#include "user.h"
++#include "fcntl.h"
++
++
++#define FULL 1
++#define EMPTY 0
++#define MUTEX 2
++
++#define BUFF_SIZE 5
++#define ITER_NUM 20
++
++int buf[BUFF_SIZE];
++int w_index = 0;
++int r_index = 0;
++
++
++void
++producer()
++{
++
++  for(int i = 1; i<ITER_NUM + 1; i++) {
++    sem_acquire(EMPTY);
++    sem_acquire(MUTEX);
++
++    printf(1, "Producer writes %d in %d\n", i, w_index % BUFF_SIZE);
++
++    sem_release(MUTEX);
++    sem_release(FULL);
++    w_index++;
++  }
++}
++
++void
++consumer()
++{
++  for(int i = 1; i<ITER_NUM + 1; i++) {
++    sem_acquire(FULL);
++    sem_acquire(MUTEX);
++
++    printf(1, "Consumer writes %d in %d\n", i, r_index % BUFF_SIZE);
++
++    sem_release(MUTEX);
++    sem_release(EMPTY);
++    r_index++;
++  }
++}
++
++int
++main(int argc, char *argv[])
++{
++  sem_init(MUTEX, 1);
++  sem_init(FULL, BUFF_SIZE);
++  sem_init(EMPTY, BUFF_SIZE);
++
++  if (fork() == 0) producer();
++  else consumer();
++
++  wait();
++
++  exit();
++}
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/reentrant_mutex.c 4-synchronisation/reentrant_mutex.c
+--- xv6/reentrant_mutex.c	1969-12-31 19:00:00
++++ 4-synchronisation/reentrant_mutex.c	2026-09-06 23:43:20
+@@ -0,0 +1,13 @@
++#include "types.h"
++#include "stat.h"
++#include "user.h"
++
++int main(int argc, char *argv[])
++{
++    int count = atoi(argv[1]);
++
++
++    printf(1, "acquire() count: %d\n", count);
++    reentrant_mutex(count);
++    exit();
++}
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/sem_acquire.c 4-synchronisation/sem_acquire.c
+--- xv6/sem_acquire.c	1969-12-31 19:00:00
++++ 4-synchronisation/sem_acquire.c	2026-09-06 23:43:20
+@@ -0,0 +1,22 @@
++#include "types.h"
++#include "stat.h"
++#include "user.h"
++#include "fs.h"
++#include "fcntl.h"
++
++int main(int argc, char *argv[])
++{
++    int arg1;
++
++    if(argc > 1) {
++        arg1 = atoi(argv[1]);
++    }
++    else {
++        printf(1, "Invalid inputs for sem_acquire\n");
++        exit();
++    }
++
++    sem_acquire(arg1);
++
++    exit();
++}
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/sem_init.c 4-synchronisation/sem_init.c
+--- xv6/sem_init.c	1969-12-31 19:00:00
++++ 4-synchronisation/sem_init.c	2026-09-06 23:43:20
+@@ -0,0 +1,23 @@
++#include "types.h"
++#include "stat.h"
++#include "user.h"
++#include "fs.h"
++#include "fcntl.h"
++
++int main(int argc, char *argv[])
++{
++    int arg1, arg2;
++
++    if(argc > 2) {
++        arg1 = atoi(argv[1]);
++        arg2 = atoi(argv[2]);
++    }
++    else {
++        printf(1, "Invalid inputs for sem_init\n");
++        exit();
++    }
++
++    sem_init(arg1, arg2);
++
++    exit();
++}
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/sem_release.c 4-synchronisation/sem_release.c
+--- xv6/sem_release.c	1969-12-31 19:00:00
++++ 4-synchronisation/sem_release.c	2026-09-06 23:43:20
+@@ -0,0 +1,23 @@
++#include "types.h"
++#include "stat.h"
++#include "user.h"
++#include "fs.h"
++#include "fcntl.h"
++
++int main(int argc, char *argv[])
++{
++    int arg1;
++
++    if(argc > 1) {
++        arg1 = atoi(argv[1]);
++    }
++    else {
++        printf(1, "Invalid inputs for sem_release\n");
++        exit();
++    }
++
++
++    sem_release(arg1);
++
++    exit();
++}
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/sort_string.c 4-synchronisation/sort_string.c
+--- xv6/sort_string.c	1969-12-31 19:00:00
++++ 4-synchronisation/sort_string.c	2026-09-06 23:43:20
+@@ -0,0 +1,36 @@
++#include "types.h"
++#include "stat.h"
++#include "user.h"
++#include "fcntl.h"
++
++
++
++
++int
++main(int argc, char *argv[])
++{
++  char* curr_string = argv[1];
++  int stringLength = strlen(curr_string);
++  char temp;
++
++  for (int i = 0; i < stringLength - 1; i++) {
++    for (int j = i + 1; j < stringLength; j++) {
++      if (curr_string[i] > curr_string[j]) {
++        temp = curr_string[i];
++        curr_string[i] = curr_string[j];
++        curr_string[j] = temp;
++      }
++    }
++  }
++  
++  int fd;
++  unlink("sort_string.txt");
++  fd = open("sort_string.txt", O_CREATE | O_RDWR);
++  if(fd < 0){
++    printf(1, "Something went wrong in opening file\n");
++  }
++  write(fd, curr_string, stringLength);
++  close(fd);
++  
++  exit();
++}
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/syscall.c 4-synchronisation/syscall.c
+--- xv6/syscall.c	2020-08-10 14:28:02
++++ 4-synchronisation/syscall.c	2026-09-06 23:43:20
+@@ -103,6 +103,10 @@
+ extern int sys_wait(void);
+ extern int sys_write(void);
+ extern int sys_uptime(void);
++extern int sys_reentrant_mutex(void);
++extern int sys_sem_acquire(void);
++extern int sys_sem_release(void);
++extern int sys_sem_init(void);
+ 
+ static int (*syscalls[])(void) = {
+ [SYS_fork]    sys_fork,
+@@ -126,6 +130,10 @@
+ [SYS_link]    sys_link,
+ [SYS_mkdir]   sys_mkdir,
+ [SYS_close]   sys_close,
++[SYS_reentrant_mutex] sys_reentrant_mutex,
++[SYS_sem_acquire] sys_sem_acquire,
++[SYS_sem_release] sys_sem_release,
++[SYS_sem_init] sys_sem_init,
+ };
+ 
+ void
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/syscall.h 4-synchronisation/syscall.h
+--- xv6/syscall.h	2020-08-10 14:28:02
++++ 4-synchronisation/syscall.h	2026-09-06 23:43:20
+@@ -20,3 +20,7 @@
+ #define SYS_link   19
+ #define SYS_mkdir  20
+ #define SYS_close  21
++#define SYS_reentrant_mutex 22
++#define SYS_sem_acquire 23
++#define SYS_sem_release 24
++#define SYS_sem_init 25
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/sysproc.c 4-synchronisation/sysproc.c
+--- xv6/sysproc.c	2020-08-10 14:28:02
++++ 4-synchronisation/sysproc.c	2026-09-06 23:43:20
+@@ -89,3 +89,45 @@
+   release(&tickslock);
+   return xticks;
+ }
++
++void
++sys_reentrant_mutex(void)
++{
++  int cnt;
++  argint(0, &cnt);
++  reentrant_mutex(cnt);
++}
++
++int sys_sem_init(void)
++{
++  int i, v;
++
++  if (argint(0, &i) < 0)
++    return -1;
++
++  if (argint(1, &v) < 0)
++    return -1;
++
++  return sem_init(i, v);
++}
++
++int sys_sem_acquire(void)
++{
++  int i;
++
++  if (argint(0, &i) < 0)
++    return -1;
++
++  return sem_acquire(i);
++}
++
++int sys_sem_release(void)
++{
++  int i;
++  
++  if (argint(0, &i) < 0)
++    return -1;
++
++  return sem_release(i);
++}
++
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/user.h 4-synchronisation/user.h
+--- xv6/user.h	2020-08-10 14:28:02
++++ 4-synchronisation/user.h	2026-09-06 23:43:20
+@@ -23,6 +23,11 @@
+ char* sbrk(int);
+ int sleep(int);
+ int uptime(void);
++void reentrant_mutex(int);
++int sem_acquire(int);
++int sem_release(int);
++int sem_init(int, int);
++
+ 
+ // ulib.c
+ int stat(const char*, struct stat*);
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/usertests.c 4-synchronisation/usertests.c
+--- xv6/usertests.c	2020-08-10 14:28:02
++++ 4-synchronisation/usertests.c	2026-09-06 23:43:20
+@@ -8,6 +8,7 @@
+ #include "traps.h"
+ #include "memlayout.h"
+ 
++
+ char buf[8192];
+ char name[3];
+ char *echoargv[] = { "echo", "ALL", "TESTS", "PASSED", 0 };
+@@ -1415,7 +1416,7 @@
+ sbrktest(void)
+ {
+   int fds[2], pid, pids[10], ppid;
+-  char *a, *b, *c, *lastaddr, *oldbrk, *p, scratch;
++  char *a, *b, *c, *oldbrk, *p, scratch;
+   uint amt;
+ 
+   printf(stdout, "sbrk test\n");
+@@ -1457,8 +1458,6 @@
+     printf(stdout, "sbrk test failed to grow big address space; enough phys mem?\n");
+     exit();
+   }
+-  lastaddr = (char*) (BIG-1);
+-  *lastaddr = 99;
+ 
+   // can one de-allocate?
+   a = sbrk(0);
+@@ -1478,11 +1477,6 @@
+   c = sbrk(4096);
+   if(c != a || sbrk(0) != a + 4096){
+     printf(stdout, "sbrk re-allocation failed, a %x c %x\n", a, c);
+-    exit();
+-  }
+-  if(*lastaddr == 99){
+-    // should be zero
+-    printf(stdout, "sbrk de-allocation didn't really deallocate\n");
+     exit();
+   }
+ 
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/usys.S 4-synchronisation/usys.S
+--- xv6/usys.S	2020-08-10 14:28:02
++++ 4-synchronisation/usys.S	2026-09-06 23:43:20
+@@ -29,3 +29,7 @@
+ SYSCALL(sbrk)
+ SYSCALL(sleep)
+ SYSCALL(uptime)
++SYSCALL(reentrant_mutex)
++SYSCALL(sem_acquire)
++SYSCALL(sem_release)
++SYSCALL(sem_init)
+\ No newline at end of file

@@ -1,0 +1,8 @@
+build/
+*.o
+*.d
+*.asm
+*.sym
+*.img
+.DS_Store
+.gdbinit

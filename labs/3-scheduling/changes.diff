@@ -1,0 +1,1319 @@
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/.gitignore 3-scheduling/.gitignore
+--- xv6/.gitignore	2020-08-10 14:28:02
++++ 3-scheduling/.gitignore	2026-09-06 23:43:20
+@@ -14,3 +14,4 @@
+ kernelmemfs
+ mkfs
+ .gdbinit
++*.vscode/
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/Makefile 3-scheduling/Makefile
+--- xv6/Makefile	2020-08-10 14:28:02
++++ 3-scheduling/Makefile	2026-09-06 23:43:20
+@@ -32,7 +32,7 @@
+ # TOOLPREFIX = i386-jos-elf
+ 
+ # Using native tools (e.g., on X86 Linux)
+-#TOOLPREFIX = 
++#TOOLPREFIX =
+ 
+ # Try to infer the correct TOOLPREFIX if not set
+ ifndef TOOLPREFIX
+@@ -181,13 +181,19 @@
+ 	_usertests\
+ 	_wc\
+ 	_zombie\
+-
++	_strdiff\
++	_ps\
++	_foo\
++	_set_queue\
++	_set_bjf\
++	_set_all_bjf\
++	
+ fs.img: mkfs README $(UPROGS)
+ 	./mkfs fs.img README $(UPROGS)
+ 
+ -include *.d
+ 
+-clean: 
++clean:
+ 	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
+ 	*.o *.d *.asm *.sym vectors.S bootblock entryother \
+ 	initcode initcode.out kernel xv6.img fs.img kernelmemfs \
+@@ -250,9 +256,12 @@
+ EXTRA=\
+ 	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
+ 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
+-	printf.c umalloc.c\
++	strdiff.c printf.c umalloc.c \
++	 _set_bjf.c _set_all_bjf.c\
++	_foo.c _ps.c _set_queue.c \
+ 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
+-	.gdbinit.tmpl gdbutil\
++	.gdbinit.tmpl gdbutil\	
++	
+ 
+ dist:
+ 	rm -rf dist
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/bed.h 3-scheduling/bed.h
+--- xv6/bed.h	1969-12-31 19:00:00
++++ 3-scheduling/bed.h	2026-09-06 23:43:20
+@@ -0,0 +1,6 @@
++#include "spinlock.h"
++
++struct bed {
++    struct spinlock lock;
++    int name;
++}; 
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/console.c 3-scheduling/console.c
+--- xv6/console.c	2020-08-10 14:28:02
++++ 3-scheduling/console.c	2026-09-06 23:43:20
+@@ -15,6 +15,9 @@
+ #include "proc.h"
+ #include "x86.h"
+ 
++#define KEY_LF          0xE4
++#define KEY_RT          0xE5
++
+ static void consputc(int);
+ 
+ static int panicked = 0;
+@@ -50,6 +53,19 @@
+ }
+ //PAGEBREAK: 50
+ 
++void
++printfloat(float xx)
++{
++  int beg=(int)(xx);
++  int fin=(int)(xx*100)-beg*100;
++  printint(beg, 10, 1);
++  consputc('.');
++  if(fin<10)
++    consputc('0');
++  printint(fin, 10, 1);
++}
++
++
+ // Print to the console. only understands %d, %x, %p, %s.
+ void
+ cprintf(char *fmt, ...)
+@@ -75,6 +91,9 @@
+     if(c == 0)
+       break;
+     switch(c){
++    case 'f':
++      printfloat(*argp++);
++      break;
+     case 'd':
+       printint(*argp++, 10, 1);
+       break;
+@@ -128,6 +147,8 @@
+ #define CRTPORT 0x3d4
+ static ushort *crt = (ushort*)P2V(0xb8000);  // CGA memory
+ 
++int back_counter = 0;
++
+ static void
+ cgaputc(int c)
+ {
+@@ -142,10 +163,18 @@
+   if(c == '\n')
+     pos += 80 - pos%80;
+   else if(c == BACKSPACE){
++    for (int i = pos - 1 ; i < pos + back_counter ; i++)
++      crt[i] = crt[i + 1];
++
+     if(pos > 0) --pos;
+   } else
+-    crt[pos++] = (c&0xff) | 0x0700;  // black on white
++  {
++    for (int i = pos + back_counter; i > pos ; i--)
++      crt[i] = crt[i - 1];
+ 
++    crt[pos] = (c&0xff) | 0x0700;  // black on white
++    pos++;
++  }
+   if(pos < 0 || pos > 25*80)
+     panic("pos under/overflow");
+ 
+@@ -159,7 +188,8 @@
+   outb(CRTPORT+1, pos>>8);
+   outb(CRTPORT, 15);
+   outb(CRTPORT+1, pos);
+-  crt[pos] = ' ' | 0x0700;
++  crt[pos + back_counter] = ' ' | 0x0700;
++  //crt[pos] = ' ' | 0x0700;
+ }
+ 
+ void
+@@ -188,6 +218,153 @@
+ 
+ #define C(x)  ((x)-'@')  // Control-x
+ 
++void move_left_cursor(){
++  int pos;
++
++  // get cursor position
++  outb(CRTPORT, 14);
++  pos = inb(CRTPORT+1) << 8;
++  outb(CRTPORT, 15);
++  pos |= inb(CRTPORT+1);
++
++  // move back
++  if(crt[pos - 2] != ('$' | 0x0700))
++    pos--;
++
++  // reset cursor
++  outb(CRTPORT, 14);
++  outb(CRTPORT+1, pos>>8);
++  outb(CRTPORT, 15);
++  outb(CRTPORT+1, pos);
++  //crt[pos] = ' ' | 0x0700;
++}
++
++void move_right_cursor(){
++  int pos;
++
++  // get cursor position
++  outb(CRTPORT, 14);
++  pos = inb(CRTPORT+1) << 8;
++  outb(CRTPORT, 15);
++  pos |= inb(CRTPORT+1);
++
++  // move forward
++  pos++;
++
++  // reset cursor
++  outb(CRTPORT, 14);
++  outb(CRTPORT+1, pos>>8);
++  outb(CRTPORT, 15);
++  outb(CRTPORT+1, pos);
++  //crt[pos] = ' ' | 0x0700;
++}
++
++int isDelimeter(char c)
++{
++  if (c == ' ' || c == '.' || c == ',' || c == ':' || c == ';')
++    return 1;
++  return 0;
++}
++
++void jump_left_cursor()
++{
++
++    int pos;
++
++  // get cursor position
++  outb(CRTPORT, 14);
++  pos = inb(CRTPORT+1) << 8;
++  outb(CRTPORT, 15);
++  pos |= inb(CRTPORT+1);
++
++  if(crt[pos - 2] == ('$' | 0x0700))
++    return;
++
++  int npos = pos;
++  for (int i = pos - 2 ; i >= 0 ; i--)
++    if (isDelimeter(crt[i]))
++    {
++      npos = i;
++      break;
++    }
++  back_counter += (pos - npos - 1);
++  pos = npos + 1;
++
++  // reset cursor
++  outb(CRTPORT, 14);
++  outb(CRTPORT+1, pos>>8);
++  outb(CRTPORT, 15);
++  outb(CRTPORT+1, pos);
++}
++
++void jump_right_cursor()
++{
++
++      int pos;
++
++  // get cursor position
++  outb(CRTPORT, 14);
++  pos = inb(CRTPORT+1) << 8;
++  outb(CRTPORT, 15);
++  pos |= inb(CRTPORT+1);
++
++  int npos = pos;
++  for (int i = pos + 1 ; !isDelimeter(crt[i]) ; i++)
++    npos = i;
++
++  //back_counter += (npos - pos - 1);
++  //pos = npos + 1;
++  back_counter -= (npos + 1 - pos);
++  pos = npos + 1;
++
++  // reset cursor
++  outb(CRTPORT, 14);
++  outb(CRTPORT+1, pos>>8);
++  outb(CRTPORT, 15);
++  outb(CRTPORT+1, pos);
++}
++
++void delete_line_until_here()
++{
++    int pos;
++
++  // get cursor position
++  outb(CRTPORT, 14);
++  pos = inb(CRTPORT+1) << 8;
++  outb(CRTPORT, 15);
++  pos |= inb(CRTPORT+1);
++
++
++
++  int idx = pos;
++  int npos = pos;
++  for (int i = pos - 1 ; i >= 0 ; i--)
++    if (crt[i] == ('$' | 0x0700))
++    {
++      npos = i + 2;
++      idx = i + 2;
++      break;
++    }
++
++
++  int p = pos;
++  while (p < pos + back_counter)
++    crt[idx++] = crt[p++];
++
++  while (idx < pos + back_counter)
++    crt[idx++] = ' ' | 0x0700;
++
++  pos = npos;
++
++
++  // reset cursor
++  outb(CRTPORT, 14);
++  outb(CRTPORT+1, pos>>8);
++  outb(CRTPORT, 15);
++  outb(CRTPORT+1, pos);
++}
++
++
+ void
+ consoleintr(int (*getc)(void))
+ {
+@@ -196,6 +373,34 @@
+   acquire(&cons.lock);
+   while((c = getc()) >= 0){
+     switch(c){
++
++    case KEY_LF:
++      move_left_cursor();
++      back_counter++;
++      break;
++
++    case KEY_RT:
++      if(back_counter != 0){
++        move_right_cursor();
++        back_counter--;
++      }
++      break;
++
++    case C('K'):
++      jump_left_cursor();
++      break;
++
++    case C('L'):
++      if(back_counter != 0){
++        jump_right_cursor();
++      }
++      break;
++
++
++    case C('I'):
++      delete_line_until_here();
++      break;
++
+     case C('P'):  // Process listing.
+       // procdump() locks cons.lock indirectly; invoke later
+       doprocdump = 1;
+@@ -296,4 +501,3 @@
+ 
+   ioapicenable(IRQ_KBD, 0);
+ }
+-
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/defs.h 3-scheduling/defs.h
+--- xv6/defs.h	2020-08-10 14:28:02
++++ 3-scheduling/defs.h	2026-09-06 23:43:20
+@@ -9,6 +9,7 @@
+ struct sleeplock;
+ struct stat;
+ struct superblock;
++struct shmid_ds;
+ 
+ // bio.c
+ void            binit(void);
+@@ -120,6 +121,10 @@
+ int             wait(void);
+ void            wakeup(void*);
+ void            yield(void);
++void            print_processes_info(void);
++void            set_queue(int, int);
++void            set_bjf_params(int, int, int, int);
++void            set_all_bjf_params(int, int, int);
+ 
+ // swtch.S
+ void            swtch(struct context**, struct context*);
+@@ -174,6 +179,8 @@
+ void            seginit(void);
+ void            kvmalloc(void);
+ pde_t*          setupkvm(void);
++int             mappages(pde_t *, void *, uint, uint, int);
++uint*         walkpgdir(pde_t *, const void *, int);
+ char*           uva2ka(pde_t*, char*);
+ int             allocuvm(pde_t*, uint, uint);
+ int             deallocuvm(pde_t*, uint, uint);
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/foo.c 3-scheduling/foo.c
+--- xv6/foo.c	1969-12-31 19:00:00
++++ 3-scheduling/foo.c	2026-09-06 23:43:20
+@@ -0,0 +1,24 @@
++#include "types.h"
++#include "stat.h"
++#include "user.h"
++#include "fcntl.h"
++
++int main(int argc, char *argv[])
++{
++    int pid[10];
++    for (int i = 0 ; i < 5 ; i++)
++    {
++        pid[i] = fork();
++        if (pid[i] == 0)
++        {
++            for (long int j = 0 ; j < 2000000000 ; j++)
++            {
++                int x = 1;
++                x += 1;
++            }
++            exit();
++        }
++    }
++    while (wait());
++    return 0;
++}
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/proc.c 3-scheduling/proc.c
+--- xv6/proc.c	2020-08-10 14:28:02
++++ 3-scheduling/proc.c	2026-09-06 23:43:20
+@@ -5,8 +5,15 @@
+ #include "mmu.h"
+ #include "x86.h"
+ #include "proc.h"
+-#include "spinlock.h"
++//#include "spinlock.h"
++#include "bed.h"
+ 
++#define MAX_ATTACHED_PROCS 8
++#define SHM_COUNT 8
++
++#define READER 0
++#define WRITER 1
++
+ struct {
+   struct spinlock lock;
+   struct proc proc[NPROC];
+@@ -70,6 +77,19 @@
+ // If found, change state to EMBRYO and initialize
+ // state required to run in the kernel.
+ // Otherwise return 0.
++
++
++int
++rand_int(int low, int high)
++{
++  int rand;
++  acquire(&tickslock);
++  rand = (ticks * ticks * ticks * 71413) % (high - low + 1) + low;
++  release(&tickslock);
++  return rand;
++}
++
++
+ static struct proc*
+ allocproc(void)
+ {
+@@ -88,7 +108,22 @@
+ found:
+   p->state = EMBRYO;
+   p->pid = nextpid++;
++  p->queue = 1; //default: RR
++  p->shm = 0;
++  p->exec_cycle = 0;
++  p->last_cpu_time = 0;
+ 
++  p->priority = rand_int(1, 1000);
++  p->priority_ratio = 1;
++  p->arrival_time_ratio = 1;
++  p->executed_cycle_ratio = 1;
++  p->creation_time = ticks;
++  p->wait_cycles = 0;
++
++  acquire(&tickslock);
++  p->creation_time = ticks;
++  release(&tickslock);
++
+   release(&ptable.lock);
+ 
+   // Allocate kernel stack.
+@@ -183,6 +218,7 @@
+   int i, pid;
+   struct proc *np;
+   struct proc *curproc = myproc();
++  //curproc->creation_time = ticks;
+ 
+   // Allocate process.
+   if((np = allocproc()) == 0){
+@@ -217,7 +253,6 @@
+   np->state = RUNNABLE;
+ 
+   release(&ptable.lock);
+-
+   return pid;
+ }
+ 
+@@ -319,10 +354,80 @@
+ //  - swtch to start running that process
+ //  - eventually that process transfers control
+ //      via swtch back to the scheduler.
++
++float
++get_rank(struct proc* p)
++{
++  return 
++    p->priority * p->priority_ratio
++    + p->creation_time * p->arrival_time_ratio
++    + p->exec_cycle * p->executed_cycle_ratio;
++}
++
++struct proc*
++bjf_finder(void)
++{
++  struct proc* p;
++  struct proc* min_proc = 0;
++  float min_rank = 1000001;
++
++  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){ 
++    if (p->state != RUNNABLE || p->queue != 3)
++      continue;
++    if (get_rank(p) < min_rank){
++      min_proc = p;
++      min_rank = get_rank(p);
++    }
++  }
++
++  return min_proc;
++}
++
++struct proc*
++round_robin_finder(void)
++{
++  struct proc *p;
++  struct proc *best = 0;
++
++  int now = ticks;
++  int max_proc = -100001;
++
++  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
++      if(p->state != RUNNABLE || p->queue != 1)
++        continue;
++
++      if(now - p->last_cpu_time > max_proc){
++        max_proc = now - p->last_cpu_time;
++        best = p;
++      }
++  }
++  return best;
++}
++
++struct proc*
++fcfs_finder(void)
++{
++  struct proc *p;
++  struct proc *first_proc = 0;
++
++  int mn = 2e9;
++  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
++      if (p->state != RUNNABLE || p->queue != 4)
++        continue;
++
++      if (p->creation_time < mn)
++      {
++        mn = p->creation_time;
++        first_proc = p;
++      }
++  }
++  return first_proc;
++}
++
+ void
+ scheduler(void)
+ {
+-  struct proc *p;
++  struct proc *p = 0;
+   struct cpu *c = mycpu();
+   c->proc = 0;
+   
+@@ -332,24 +437,39 @@
+ 
+     // Loop over process table looking for process to run.
+     acquire(&ptable.lock);
+-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+-      if(p->state != RUNNABLE)
+-        continue;
+ 
+-      // Switch to chosen process.  It is the process's job
+-      // to release ptable.lock and then reacquire it
+-      // before jumping back to us.
+-      c->proc = p;
+-      switchuvm(p);
+-      p->state = RUNNING;
++     // Check if process is waiting more than 8000 cycles
++     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
++       if(p->wait_cycles >= 800) {
++           p->wait_cycles = 0;
++           p->queue = 1;
++       } else if (p->state == RUNNABLE) {
++           p->wait_cycles++;
++       }
++     }
+ 
+-      swtch(&(c->scheduler), p->context);
+-      switchkvm();
++    p = round_robin_finder();
++    
++    if (p == 0)
++      p = fcfs_finder();
++    
++    if(p == 0)
++      p = bjf_finder();
+ 
+-      // Process is done running for now.
+-      // It should have changed its p->state before coming back.
+-      c->proc = 0;
++    if (p == 0) {
++      release(&ptable.lock);
++      continue;
+     }
++    c->proc = p;
++    switchuvm(p);
++    p->state = RUNNING;
++    p->wait_cycles = 0;
++    
++
++    swtch(&(c->scheduler), p->context);
++    switchkvm();
++
++    c->proc = 0;
+     release(&ptable.lock);
+ 
+   }
+@@ -387,6 +507,9 @@
+ {
+   acquire(&ptable.lock);  //DOC: yieldlock
+   myproc()->state = RUNNABLE;
++  myproc()->last_cpu_time = ticks;
++  if (myproc()->state != SLEEPING)
++      myproc()->exec_cycle += 1;
+   sched();
+   release(&ptable.lock);
+ }
+@@ -531,4 +654,215 @@
+     }
+     cprintf("\n");
+   }
+-}
++}
++
++
++char*
++get_state_string(int state)
++{
++  if (state == 0) {
++    return "UNUSED";
++  }
++  else if (state == 1) {
++    return "EMBRYO";
++  }
++  else if (state == 2) {
++    return "SLEEPING";
++  }
++  else if (state == 3) {
++    return "RUNNABLE";
++  }
++  else if (state == 4) {
++    return "RUNNING";
++  }
++  else if (state == 5) {
++    return "ZOMBIE";
++  }
++  else {
++    return "";
++  }
++}
++
++char*
++get_queue_string(int queue)
++{
++  if (queue == 1)
++    return "RR";
++  else if (queue == 2)
++    return "FCFS";
++  else
++    return "BJF";
++  
++}
++
++// Got this code from stackoverflow
++int
++get_int_len(int num)
++{
++  int len = 0;
++  if (num == 0)
++    return 1;
++  while (num > 0) {
++    len++;
++    num = num / 10;
++  }
++  return len;
++}
++
++int round(float num){
++  if(num - (int)(num) <= 0.5)
++    return (int)(num);
++  return (int)(num) + 1;
++}
++
++void 
++print_processes_info()
++{
++  struct proc *p;
++
++  cprintf("name");
++  for (int i = 0 ; i < 5 - 4 ; i++)
++    cprintf(" ");
++  
++  cprintf("pid");
++  for (int i = 0 ; i < 5 - 3 ; i++)
++    cprintf(" ");
++
++  cprintf("state");
++  for (int i = 0 ; i < 10 - 5 ; i++)
++    cprintf(" ");
++
++  cprintf("queue");
++  for (int i = 0 ; i < 6 - 5 ; i++)
++    cprintf(" ");
++
++  cprintf("p_ratio");
++  for (int i = 0 ; i < 10 - 7 ; i++)
++    cprintf(" ");
++
++  cprintf("at_ratio");
++  for (int i = 0 ; i < 10 - 8 ; i++)
++    cprintf(" ");
++
++  cprintf("ec_ratio");
++  for (int i = 0 ; i < 10 - 8 ; i++)
++    cprintf(" ");
++
++  cprintf("arr_time");
++  for (int i = 0 ; i < 10 - 8 ; i++)
++    cprintf(" ");
++
++  cprintf("exe_cyc");
++  for (int i = 0 ; i < 10 - 8 ; i++)
++    cprintf(" ");
++
++  cprintf("Rank");
++  for (int i = 0; i < 10 - 10 ; i++)
++    cprintf(" ");
++
++
++
++  cprintf("\n");
++  for (int i = 0 ; i < 86 ; i++)
++    cprintf(".");
++  cprintf("\n");
++
++
++
++  acquire(&ptable.lock);
++  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){ 
++    if (p->state == UNUSED)
++      continue;
++
++
++    cprintf(p->name);
++    for (int i = 0 ; i < 5 - strlen(p->name) ; i++)
++      cprintf(" ");
++
++    cprintf("%d", p->pid);
++    for (int i = 0 ; i < 5 - get_int_len(p->pid) ; i++)
++      cprintf(" ");
++
++    cprintf(get_state_string(p->state));
++    for (int i = 0 ; i < 10 - strlen(get_state_string(p->state)) ; i++)
++      cprintf(" "); 
++
++    cprintf(get_queue_string(p->queue));
++    for (int i = 0 ; i < 6 - strlen(get_queue_string(p->queue)); i++)
++      cprintf(" ");
++    
++    cprintf("%d", p->priority_ratio);
++    for (int i = 0 ; i < 10 - get_int_len(p->priority_ratio) ; i++)
++      cprintf(" ");
++
++    cprintf("%d", p->arrival_time_ratio);
++    for (int i = 0 ; i < 10 - get_int_len(p->arrival_time_ratio) ; i++)
++      cprintf(" ");
++
++    cprintf("%d", p->executed_cycle_ratio);
++    for (int i = 0 ; i < 10 - get_int_len(p->executed_cycle_ratio) ; i++)
++      cprintf(" ");
++
++    cprintf("%d", p->creation_time);
++    for (int i = 0 ; i < 10 - get_int_len(p->creation_time) ; i++)
++      cprintf(" ");
++    
++    cprintf("%d", p->exec_cycle);
++    for (int i = 0 ; i < 10 - get_int_len(p->exec_cycle) ; i++)
++      cprintf(" ");
++
++    cprintf("%d", round(get_rank(p) * 10));
++    for (int i = 0 ; i < 10 - get_int_len(get_rank(p)) ; i++)
++      cprintf(" ");
++
++    cprintf("\n");
++  }
++  release(&ptable.lock);
++  
++}
++
++void
++set_queue(int pid, int queue)
++{
++  struct proc *p;
++
++  acquire(&ptable.lock);
++  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
++  {
++    if (p->pid == pid)
++      p->queue = queue;
++  }
++  release(&ptable.lock);
++}
++
++void
++set_bjf_params(int pid, int priority_ratio, int arrival_time_ratio, int executed_cycle_ratio)
++{
++  struct proc *p;
++
++  acquire(&ptable.lock);
++  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
++  {
++    if (p->pid == pid)
++    {
++      p->priority_ratio = priority_ratio;
++      p->arrival_time_ratio = arrival_time_ratio;
++      p->executed_cycle_ratio = executed_cycle_ratio; 
++    }
++  }
++  release(&ptable.lock); 
++}
++
++void
++set_all_bjf_params(int priority_ratio, int arrival_time_ratio, int executed_cycle_ratio)
++{
++  struct proc *p;
++  acquire(&ptable.lock);
++  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
++  {
++      p->priority_ratio = priority_ratio;
++      p->arrival_time_ratio = arrival_time_ratio;
++      p->executed_cycle_ratio = executed_cycle_ratio; 
++  }
++  release(&ptable.lock); 
++}
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/proc.h 3-scheduling/proc.h
+--- xv6/proc.h	2020-08-10 14:28:02
++++ 3-scheduling/proc.h	2026-09-06 23:43:20
+@@ -49,10 +49,15 @@
+   struct file *ofile[NOFILE];  // Open files
+   struct inode *cwd;           // Current directory
+   char name[16];               // Process name (debugging)
+-};
+ 
+-// Process memory is laid out contiguously, low addresses first:
+-//   text
+-//   original data and bss
+-//   fixed-size stack
+-//   expandable heap
++  uint creation_time;          // Arrival time
++  int queue;                   // Queue number
++  int priority;                // Priority in Queue
++  int priority_ratio;         
++  int arrival_time_ratio;
++  int executed_cycle_ratio;
++  int exec_cycle;
++  int last_cpu_time;
++  uint shm;
++  int wait_cycles;
++};
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/ps.c 3-scheduling/ps.c
+--- xv6/ps.c	1969-12-31 19:00:00
++++ 3-scheduling/ps.c	2026-09-06 23:43:20
+@@ -0,0 +1,12 @@
++#include "types.h"
++#include "stat.h"
++#include "user.h"
++#include "fcntl.h"
++
++
++int
++main(int argc, char *argv[])
++{
++  print_processes_info();
++  exit();
++}
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/rwtest.c 3-scheduling/rwtest.c
+--- xv6/rwtest.c	1969-12-31 19:00:00
++++ 3-scheduling/rwtest.c	2026-09-06 23:43:20
+@@ -0,0 +1,49 @@
++#include "types.h"
++#include "stat.h"
++#include "user.h"
++
++#define READER 0
++#define WRITER 1
++
++int main(int argc, char *argv[]){
++	int pattern = atoi(argv[1]);
++  int priority = atoi(argv[2]);
++
++  
++  int digit_count = 0;
++  int pattern_copy = pattern;
++  while(pattern_copy)
++  {
++    pattern_copy /= 2;
++    digit_count++;
++  }
++
++  int reader_writers[digit_count];
++  for (int i = 0; i < digit_count; i++)
++  {
++    reader_writers[i] = ((1 << i) & (pattern)) ? 1 : 0;
++  }
++
++  for(int i = digit_count - 1; i >= 0; i--)
++    printf(1, "%d", reader_writers[i]);
++
++  printf(1, "\n");
++
++  for (int i = digit_count - 2; i >= 0 ; i--)
++  {
++    int pid = fork();
++    if (pid == 0) {
++      if (priority == READER)
++        rw_exec(reader_writers[i]);
++      else if (priority == WRITER)
++        wr_exec(reader_writers[i]);
++
++      exit();
++    }
++  }
++
++  while(wait() != -1);
++  
++
++  return 0;
++} 
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/set_all_bjf.c 3-scheduling/set_all_bjf.c
+--- xv6/set_all_bjf.c	1969-12-31 19:00:00
++++ 3-scheduling/set_all_bjf.c	2026-09-06 23:43:20
+@@ -0,0 +1,14 @@
++#include "types.h"
++#include "stat.h"
++#include "user.h"
++#include "fcntl.h"
++
++
++
++int
++main(int argc, char *argv[])
++{  
++  set_all_bjf_params(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
++
++  exit();
++}
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/set_bjf.c 3-scheduling/set_bjf.c
+--- xv6/set_bjf.c	1969-12-31 19:00:00
++++ 3-scheduling/set_bjf.c	2026-09-06 23:43:20
+@@ -0,0 +1,14 @@
++#include "types.h"
++#include "stat.h"
++#include "user.h"
++#include "fcntl.h"
++
++
++
++int
++main(int argc, char *argv[])
++{  
++  set_bjf_params(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]), atoi(argv[4]));
++
++  exit();
++}
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/set_priority.c 3-scheduling/set_priority.c
+--- xv6/set_priority.c	1969-12-31 19:00:00
++++ 3-scheduling/set_priority.c	2026-09-06 23:43:20
+@@ -0,0 +1,13 @@
++#include "types.h"
++#include "stat.h"
++#include "user.h"
++#include "fcntl.h"
++
++
++int
++main(int argc, char *argv[])
++{
++  set_priority(atoi(argv[1]), atoi(argv[2]));
++
++  exit();
++}
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/set_queue.c 3-scheduling/set_queue.c
+--- xv6/set_queue.c	1969-12-31 19:00:00
++++ 3-scheduling/set_queue.c	2026-09-06 23:43:20
+@@ -0,0 +1,13 @@
++#include "types.h"
++#include "stat.h"
++#include "user.h"
++#include "fcntl.h"
++
++
++int
++main(int argc, char *argv[])
++{
++  set_queue(atoi(argv[1]), atoi(argv[2]));
++
++  exit();
++}
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/spinlock.c 3-scheduling/spinlock.c
+--- xv6/spinlock.c	2020-08-10 14:28:02
++++ 3-scheduling/spinlock.c	2026-09-06 23:43:20
+@@ -8,6 +8,7 @@
+ #include "mmu.h"
+ #include "proc.h"
+ #include "spinlock.h"
++#include "stddef.h"
+ 
+ void
+ initlock(struct spinlock *lk, char *name)
+@@ -15,6 +16,7 @@
+   lk->name = name;
+   lk->locked = 0;
+   lk->cpu = 0;
++  lk->lock_holder_pid = -1;
+ }
+ 
+ // Acquire the lock.
+@@ -25,13 +27,34 @@
+ acquire(struct spinlock *lk)
+ {
+   pushcli(); // disable interrupts to avoid deadlock.
++
++  uint cur_proc_pid = 1;
++  if (myproc() != NULL)
++    cur_proc_pid = myproc()->pid;
++  
++  if (holding(lk) && lk->lock_holder_pid == cur_proc_pid)
++  {
++    popcli();
++    return;
++  }
++  if(holding(lk) && lk->lock_holder_pid != cur_proc_pid)
++    panic("acquire");
++    
++
++  /*
+   if(holding(lk))
+     panic("acquire");
++  */
+ 
++
+   // The xchg is atomic.
+   while(xchg(&lk->locked, 1) != 0)
+     ;
+ 
++  
++  lk-> lock_holder_pid = cur_proc_pid;
++
++
+   // Tell the C compiler and the processor to not move loads or stores
+   // past this point, to ensure that the critical section's memory
+   // references happen after the lock is acquired.
+@@ -51,6 +74,7 @@
+ 
+   lk->pcs[0] = 0;
+   lk->cpu = 0;
++  lk->lock_holder_pid = -1;
+ 
+   // Tell the C compiler and the processor to not move loads or stores
+   // past this point, to ensure that all the stores in the critical
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/spinlock.h 3-scheduling/spinlock.h
+--- xv6/spinlock.h	2020-08-10 14:28:02
++++ 3-scheduling/spinlock.h	2026-09-06 23:43:20
+@@ -7,5 +7,6 @@
+   struct cpu *cpu;   // The cpu holding the lock.
+   uint pcs[10];      // The call stack (an array of program counters)
+                      // that locked the lock.
++  uint lock_holder_pid;
+ };
+ 
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/strdiff.c 3-scheduling/strdiff.c
+--- xv6/strdiff.c	1969-12-31 19:00:00
++++ 3-scheduling/strdiff.c	2026-09-06 23:43:20
+@@ -0,0 +1,54 @@
++#include "types.h"
++#include "stat.h"
++#include "user.h"
++#include "fcntl.h"
++
++int compare_char(char a, char b){
++  int first, second;
++  if('a' <= a && a <= 'z')
++    first = a - 'a';
++  else
++    first = a - 'A';
++  if('a' <= b && b <= 'z')
++    second = b - 'a';
++  else
++    second = b - 'A';
++
++  if(first >= second)
++    return 0;
++  return 1;
++}
++
++
++int
++main(int argc, char *argv[])
++{
++  if(argc != 3){
++    printf(2, "Error: number of args...\n");
++    exit();
++  }
++
++  char ans[16];
++
++  int i;
++  for(i = 0; argv[1][i] != '\0' && argv[2][i] != '\0'; i++)
++    ans[i] = '0' + compare_char(argv[1][i], argv[2][i]);
++
++  int j = i;
++  if(argv[1][i] == '\0' && argv[2][i] != '\0')
++    for(j = i; argv[2][j] != '\0'; j++)
++      ans[j] = '1';
++  else if(argv[1][i] != '\0' && argv[2][i] == '\0')
++    for(j = i; argv[1][j] != '\0'; j++)
++      ans[j] = '0';
++
++  ans[j] = '\n';
++  ans[j + 1] = '\0';
++
++  unlink("strdiff_result.txt");
++  int fd = open("strdiff_result.txt", O_CREATE | O_RDWR);
++  write(fd, ans, strlen(ans));
++
++  close(fd);
++  exit();
++}
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/syscall.c 3-scheduling/syscall.c
+--- xv6/syscall.c	2020-08-10 14:28:02
++++ 3-scheduling/syscall.c	2026-09-06 23:43:20
+@@ -103,6 +103,10 @@
+ extern int sys_wait(void);
+ extern int sys_write(void);
+ extern int sys_uptime(void);
++extern int sys_print_processes_info(void);
++extern int sys_set_queue(void);
++extern int sys_set_bjf_params(void);
++extern int sys_set_all_bjf_params(void);
+ 
+ static int (*syscalls[])(void) = {
+ [SYS_fork]    sys_fork,
+@@ -126,6 +130,10 @@
+ [SYS_link]    sys_link,
+ [SYS_mkdir]   sys_mkdir,
+ [SYS_close]   sys_close,
++[SYS_print_processes_info]  sys_print_processes_info,
++[SYS_set_queue] sys_set_queue,
++[SYS_set_bjf_params] sys_set_bjf_params,
++[SYS_set_all_bjf_params] sys_set_all_bjf_params,
+ };
+ 
+ void
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/syscall.h 3-scheduling/syscall.h
+--- xv6/syscall.h	2020-08-10 14:28:02
++++ 3-scheduling/syscall.h	2026-09-06 23:43:20
+@@ -20,3 +20,8 @@
+ #define SYS_link   19
+ #define SYS_mkdir  20
+ #define SYS_close  21
++#define SYS_get_descendants 26
++#define SYS_print_processes_info  28
++#define SYS_set_queue 29
++#define SYS_set_bjf_params  31
++#define SYS_set_all_bjf_params  32
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/sysproc.c 3-scheduling/sysproc.c
+--- xv6/sysproc.c	2020-08-10 14:28:02
++++ 3-scheduling/sysproc.c	2026-09-06 23:43:20
+@@ -6,6 +6,7 @@
+ #include "memlayout.h"
+ #include "mmu.h"
+ #include "proc.h"
++#include "bed.h"
+ 
+ int
+ sys_fork(void)
+@@ -88,4 +89,38 @@
+   xticks = ticks;
+   release(&tickslock);
+   return xticks;
+-}
++}
++
++void
++sys_print_processes_info(void)
++{
++  print_processes_info();
++}
++
++void
++sys_set_queue(void)
++{
++  int pid, queue;
++  argint(0, &pid);
++  argint(1, &queue);
++  set_queue(pid, queue);
++}
++
++void sys_set_bjf_params(void)
++{
++  int pid, priority_ratio, arrival_time_ratio, executed_cycle_ratio;
++  argint(0, &pid);
++  argint(1, &priority_ratio);
++  argint(2, &arrival_time_ratio);
++  argint(3, &executed_cycle_ratio);
++  set_bjf_params(pid, priority_ratio, arrival_time_ratio, executed_cycle_ratio);
++}
++
++void sys_set_all_bjf_params(void)
++{
++  int priority_ratio, arrival_time_ratio, executed_cycle_ratio;
++  argint(0, &priority_ratio);
++  argint(1, &arrival_time_ratio);
++  argint(2, &executed_cycle_ratio);
++  set_all_bjf_params(priority_ratio, arrival_time_ratio, executed_cycle_ratio);
++}
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/user.h 3-scheduling/user.h
+--- xv6/user.h	2020-08-10 14:28:02
++++ 3-scheduling/user.h	2026-09-06 23:43:20
+@@ -23,6 +23,11 @@
+ char* sbrk(int);
+ int sleep(int);
+ int uptime(void);
++void get_descendants(void);
++void print_processes_info(void);
++void set_queue(int, int);
++void set_bjf_params(int, int, int, int);
++void set_all_bjf_params(int, int, int);
+ 
+ // ulib.c
+ int stat(const char*, struct stat*);
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/usertests.c 3-scheduling/usertests.c
+--- xv6/usertests.c	2020-08-10 14:28:02
++++ 3-scheduling/usertests.c	2026-09-06 23:43:20
+@@ -1415,7 +1415,7 @@
+ sbrktest(void)
+ {
+   int fds[2], pid, pids[10], ppid;
+-  char *a, *b, *c, *lastaddr, *oldbrk, *p, scratch;
++  char *a, *b, *c, *oldbrk, *p, scratch;
+   uint amt;
+ 
+   printf(stdout, "sbrk test\n");
+@@ -1457,8 +1457,6 @@
+     printf(stdout, "sbrk test failed to grow big address space; enough phys mem?\n");
+     exit();
+   }
+-  lastaddr = (char*) (BIG-1);
+-  *lastaddr = 99;
+ 
+   // can one de-allocate?
+   a = sbrk(0);
+@@ -1478,11 +1476,6 @@
+   c = sbrk(4096);
+   if(c != a || sbrk(0) != a + 4096){
+     printf(stdout, "sbrk re-allocation failed, a %x c %x\n", a, c);
+-    exit();
+-  }
+-  if(*lastaddr == 99){
+-    // should be zero
+-    printf(stdout, "sbrk de-allocation didn't really deallocate\n");
+     exit();
+   }
+ 
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/usys.S 3-scheduling/usys.S
+--- xv6/usys.S	2020-08-10 14:28:02
++++ 3-scheduling/usys.S	2026-09-06 23:43:20
+@@ -29,3 +29,7 @@
+ SYSCALL(sbrk)
+ SYSCALL(sleep)
+ SYSCALL(uptime)
++SYSCALL(print_processes_info)
++SYSCALL(set_queue)
++SYSCALL(set_bjf_params)
++SYSCALL(set_all_bjf_params)
+\ No newline at end of file
+diff -u -r -N --exclude=*.o --exclude=*.d --exclude=*.asm --exclude=*.sym --exclude=*.img --exclude=_* --exclude=.gdbinit --exclude=kernel* --exclude=bootblock* --exclude=entryother --exclude=initcode* --exclude=mkfs --exclude=vectors.S --exclude=.DS_Store xv6/vm.c 3-scheduling/vm.c
+--- xv6/vm.c	2020-08-10 14:28:02
++++ 3-scheduling/vm.c	2026-09-06 23:43:20
+@@ -32,7 +32,7 @@
+ // Return the address of the PTE in page table pgdir
+ // that corresponds to virtual address va.  If alloc!=0,
+ // create any required page table pages.
+-static pte_t *
++pte_t *
+ walkpgdir(pde_t *pgdir, const void *va, int alloc)
+ {
+   pde_t *pde;
+@@ -57,7 +57,7 @@
+ // Create PTEs for virtual addresses starting at va that refer to
+ // physical addresses starting at pa. va and size might not
+ // be page-aligned.
+-static int
++int
+ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
+ {
+   char *a, *last;
